@@ -7,6 +7,10 @@
 // Nome da aba da planilha com os dados
 var SHEET_NAME = "historico_manutenções";
 
+// Opcional: preencha com o ID da planilha se publicar este script fora da planilha.
+// Quando vazio, o dashboard usa a planilha ativa do script vinculado.
+var SPREADSHEET_ID = "";
+
 // Horas disponíveis por veículo por mês (ajuste conforme sua operação)
 var HORAS_OPERACAO_DIA = 12;
 
@@ -17,25 +21,62 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("📊 Dashboard Frota")
     .addItem("Abrir Dashboard", "abrirDashboard")
+    .addItem("Ver link do App Web", "mostrarLinkAppWeb")
     .addToUi();
+}
+
+function criarDashboardHtml() {
+  return HtmlService.createHtmlOutputFromFile("Dashboard_Frota")
+    .setTitle("Dashboard de Manutenção da Frota")
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ------------------------------------------------------------------
+// PERMITE PUBLICAR O DASHBOARD COMO APP WEB E ABRIR POR LINK DIRETO
+// ------------------------------------------------------------------
+function doGet() {
+  return criarDashboardHtml();
 }
 
 // ------------------------------------------------------------------
 // ABRE O DASHBOARD EM UMA JANELA MODAL GRANDE
 // ------------------------------------------------------------------
 function abrirDashboard() {
-  var html = HtmlService.createHtmlOutputFromFile("Dashboard_Frota")
+  var html = criarDashboardHtml()
     .setWidth(1400)
-    .setHeight(900)
-    .setTitle("Dashboard de Manutenção da Frota");
+    .setHeight(900);
   SpreadsheetApp.getUi().showModalDialog(html, "Dashboard de Manutenção da Frota");
+}
+
+function mostrarLinkAppWeb() {
+  var url = ScriptApp.getService().getUrl();
+  var mensagem = url
+    ? 'App Web publicado. Abra pelo link:<br><a href="' + url + '" target="_blank">' + url + '</a>'
+    : 'Publique em Implantar > Nova implantação > App da Web para gerar o link direto.';
+  SpreadsheetApp.getUi().showModalDialog(
+    HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;font-size:13px;line-height:1.5;padding:12px">' + mensagem + '</div>')
+      .setWidth(520)
+      .setHeight(140),
+    "Link do App Web"
+  );
+}
+
+function getSpreadsheetDashboard() {
+  if (SPREADSHEET_ID && String(SPREADSHEET_ID).trim() !== "") {
+    return SpreadsheetApp.openById(String(SPREADSHEET_ID).trim());
+  }
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    throw new Error("Planilha não encontrada. Vincule o script a uma planilha ou preencha SPREADSHEET_ID no Code.gs.");
+  }
+  return ss;
 }
 
 // ------------------------------------------------------------------
 // LEITURA PRINCIPAL DE DADOS DA PLANILHA
 // ------------------------------------------------------------------
 function getDadosBrutos() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheetDashboard();
   var sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) throw new Error("Aba '" + SHEET_NAME + "' não encontrada.");
 
