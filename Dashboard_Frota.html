@@ -24,6 +24,24 @@
     --glow-blue: rgba(59,130,246,0.15);
     --glow-green: rgba(16,185,129,0.15);
     --glow-red: rgba(239,68,68,0.15);
+    --topbar-bg: rgba(11,15,26,0.95);
+    --card-gradient-a: #111827;
+    --card-gradient-b: #0d1b2e;
+  }
+  body.theme-light {
+    --bg: #f3f6fb;
+    --surface: #ffffff;
+    --surface2: #e9eef7;
+    --border: #d5deea;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --glow-blue: rgba(59,130,246,0.10);
+    --glow-green: rgba(16,185,129,0.10);
+    --glow-red: rgba(239,68,68,0.10);
+    --topbar-bg: rgba(255,255,255,0.94);
+    --card-gradient-a: #ffffff;
+    --card-gradient-b: #eef6ff;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: var(--bg); color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 13px; overflow-x: hidden; }
@@ -34,10 +52,10 @@
   /* ── TOPBAR ── */
   .topbar {
     position: sticky; top: 0; z-index: 100;
-    background: rgba(11,15,26,0.95); backdrop-filter: blur(12px);
+    background: var(--topbar-bg); backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
     padding: 0 24px;
-    height: 60px; display: flex; align-items: center; gap: 16px;
+    min-height: 60px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   }
   .topbar-brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
   .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan); animation: pulse 2s infinite; }
@@ -50,18 +68,25 @@
   .filter-group { display: flex; flex-direction: column; gap: 2px; }
   select {
     background: var(--surface2); border: 1px solid var(--border); color: var(--text-primary);
-    padding: 5px 28px 5px 10px; border-radius: 6px; font-family: inherit; font-size: 12px;
-    cursor: pointer; outline: none; appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 8px center;
+    padding: 5px 10px; border-radius: 6px; font-family: inherit; font-size: 12px;
+    cursor: pointer; outline: none; min-width: 132px;
   }
+  select[multiple] { height: 58px; min-width: 150px; scrollbar-width: thin; }
   select:focus { border-color: var(--accent-blue); }
+  select option { background: var(--surface); color: var(--text-primary); }
+  .filter-hint { font-size: 9px; color: var(--text-muted); line-height: 1; }
   .btn-apply {
     background: var(--accent-blue); color: #fff; border: none;
     padding: 6px 16px; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600;
     cursor: pointer; transition: .2s; white-space: nowrap;
   }
   .btn-apply:hover { background: #2563eb; }
+  .btn-theme {
+    background: var(--surface2); color: var(--text-primary); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: .2s; white-space: nowrap;
+  }
+  .btn-theme:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 
   /* ── LOADING OVERLAY ── */
   #loading-overlay {
@@ -221,17 +246,23 @@
 
   <div class="filter-group">
     <span class="filter-label">Mês/Ano</span>
-    <select id="sel-mes"><option value="Todos">Todos os períodos</option></select>
+    <select id="sel-mes" multiple size="4"><option value="Todos">Todos os períodos</option></select>
+    <span class="filter-hint">Ctrl/Cmd para múltiplos</span>
   </div>
   <div class="filter-group">
     <span class="filter-label">Oficina</span>
-    <select id="sel-oficina"><option value="Todas">Todas</option></select>
+    <select id="sel-oficina" multiple size="4"><option value="Todas">Todas</option></select>
   </div>
   <div class="filter-group">
     <span class="filter-label">Modelo</span>
-    <select id="sel-modelo"><option value="Todos">Todos</option></select>
+    <select id="sel-modelo" multiple size="4"><option value="Todos">Todos</option></select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Centro Custo</span>
+    <select id="sel-centro-custo" multiple size="4"><option value="Todos">Todos</option></select>
   </div>
   <button class="btn-apply" onclick="aplicarFiltros()">▶ Aplicar</button>
+  <button class="btn-theme" id="btn-theme" onclick="alternarTema()" title="Alternar entre modo claro e escuro">☀️ Claro</button>
 </div>
 
 <!-- DASHBOARD -->
@@ -247,7 +278,7 @@
 
     <div class="grid-4">
       <!-- KR1: Gauge Disponibilidade -->
-      <div class="card" style="background:linear-gradient(135deg,#111827 0%,#0d1b2e 100%)">
+      <div class="card" style="background:linear-gradient(135deg,var(--card-gradient-a) 0%,var(--card-gradient-b) 100%)">
         <div class="card-glow" style="background:linear-gradient(90deg,var(--accent-cyan),var(--accent-blue))"></div>
         <div class="kpi-label">KR1 · Taxa de Disponibilidade</div>
         <div class="gauge-wrapper">
@@ -409,17 +440,40 @@
 // ── CHARTS ──────────────────────────────────────────────────────────
 var chartPrevCorr = null;
 var chartDonutLeve = null;
+var ultimoDashboard = null;
 
-var CF = {
-  bg: '#0b0f1a', surface: '#111827', border: '#1f2d42',
-  blue: '#3b82f6', cyan: '#06b6d4', green: '#10b981',
-  red: '#ef4444', amber: '#f59e0b', violet: '#8b5cf6',
-  text: '#94a3b8', muted: '#475569'
-};
+var CF = {};
 
-Chart.defaults.color = CF.text;
-Chart.defaults.borderColor = CF.border;
-Chart.defaults.font.family = "'DM Sans', sans-serif";
+function lerCorCss(nome) {
+  return getComputedStyle(document.body).getPropertyValue(nome).trim();
+}
+
+function atualizarCoresChart() {
+  CF = {
+    bg: lerCorCss('--bg'), surface: lerCorCss('--surface'), border: lerCorCss('--border'),
+    blue: lerCorCss('--accent-blue'), cyan: lerCorCss('--accent-cyan'), green: lerCorCss('--accent-green'),
+    red: lerCorCss('--accent-red'), amber: lerCorCss('--accent-amber'), violet: lerCorCss('--accent-violet'),
+    text: lerCorCss('--text-secondary'), muted: lerCorCss('--text-muted')
+  };
+  Chart.defaults.color = CF.text;
+  Chart.defaults.borderColor = CF.border;
+  Chart.defaults.font.family = "'DM Sans', sans-serif";
+}
+
+function alternarTema() {
+  var claro = document.body.classList.toggle('theme-light');
+  localStorage.setItem('fleet-theme', claro ? 'light' : 'dark');
+  document.getElementById('btn-theme').textContent = claro ? '🌙 Escuro' : '☀️ Claro';
+  atualizarCoresChart();
+  if (ultimoDashboard) buildCharts(ultimoDashboard);
+}
+
+function aplicarTemaSalvo() {
+  if (localStorage.getItem('fleet-theme') === 'light') document.body.classList.add('theme-light');
+  var claro = document.body.classList.contains('theme-light');
+  document.getElementById('btn-theme').textContent = claro ? '🌙 Escuro' : '☀️ Claro';
+  atualizarCoresChart();
+}
 
 function buildCharts(d) {
   // Destroy previous
@@ -475,6 +529,7 @@ function buildCharts(d) {
 
 // ── RENDER DATA ──────────────────────────────────────────────────────
 function renderDashboard(d) {
+  ultimoDashboard = d;
 
   // ─ KR1: Gauge
   var pct = d.kr1.taxaDisponibilidade;
@@ -591,39 +646,62 @@ function renderDashboard(d) {
 
   // ─ Labels
   document.getElementById('periodo-label').textContent =
-    (d.filtroMes && d.filtroMes !== 'Todos' ? 'Período: ' + d.filtroMes : 'Todos os períodos') +
-    (d.filtroOficina && d.filtroOficina !== 'Todas' ? ' · ' + d.filtroOficina : '') +
-    (d.filtroModelo && d.filtroModelo !== 'Todos' ? ' · ' + d.filtroModelo : '');
+    'Período: ' + (d.filtroMes || 'Todos os períodos') +
+    (d.filtroOficina && d.filtroOficina !== 'Todas' ? ' · Oficina: ' + d.filtroOficina : '') +
+    (d.filtroModelo && d.filtroModelo !== 'Todos' ? ' · Modelo: ' + d.filtroModelo : '') +
+    (d.filtroCentroCusto && d.filtroCentroCusto !== 'Todos' ? ' · Centro: ' + d.filtroCentroCusto : '');
 
   // ─ Build charts
   buildCharts(d);
 }
 
 // ── FILTROS ──────────────────────────────────────────────────────────
+function selecionarApenasTodosQuandoNecessario(selectEl, valorTodos) {
+  var valores = Array.prototype.map.call(selectEl.selectedOptions, function(opt) { return opt.value; });
+  if (valores.length === 0) {
+    selectEl.querySelector('option[value="' + valorTodos + '"]').selected = true;
+    return;
+  }
+  if (valores.indexOf(valorTodos) !== -1 && valores.length > 1) {
+    selectEl.querySelector('option[value="' + valorTodos + '"]').selected = false;
+  }
+}
+
+function getSelectedValues(id, valorTodos) {
+  var selectEl = document.getElementById(id);
+  selecionarApenasTodosQuandoNecessario(selectEl, valorTodos);
+  var valores = Array.prototype.map.call(selectEl.selectedOptions, function(opt) { return opt.value; });
+  return valores.length > 0 ? valores : [valorTodos];
+}
+
+function preencherSelect(id, opcoes, valorPadrao, formatador) {
+  var selectEl = document.getElementById(id);
+  selectEl.innerHTML = '';
+  opcoes.forEach(function(opcao) {
+    var opt = document.createElement('option');
+    opt.value = opcao;
+    opt.textContent = formatador ? formatador(opcao) : opcao;
+    if (opcao === valorPadrao) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
+
 function popularFiltros(filtros) {
-  var selMes = document.getElementById('sel-mes');
-  var selOf = document.getElementById('sel-oficina');
-  var selMod = document.getElementById('sel-modelo');
-  selMes.innerHTML = '<option value="Todos">Todos os períodos</option>';
-  filtros.meses.forEach(function(m) {
-    selMes.innerHTML += '<option value="' + m + '">' + m + '</option>';
+  preencherSelect('sel-mes', ['Todos'].concat(filtros.meses), filtros.meses.length > 0 ? filtros.meses[0] : 'Todos', function(m) {
+    return m === 'Todos' ? 'Todos os períodos' : m;
   });
-  selOf.innerHTML = '';
-  filtros.oficinas.forEach(function(o) {
-    selOf.innerHTML += '<option value="' + o + '">' + (o.replace('NORTE TECH SERVICOS EM ENERGIA LTDA - ', '').replace('NORTE TECH SERVIÇOS EM ENERGIA LTDA - ', '')) + '</option>';
+  preencherSelect('sel-oficina', filtros.oficinas, 'Todas', function(o) {
+    return o.replace('NORTE TECH SERVICOS EM ENERGIA LTDA - ', '').replace('NORTE TECH SERVIÇOS EM ENERGIA LTDA - ', '');
   });
-  selMod.innerHTML = '<option value="Todos">Todos</option>';
-  filtros.modelos.forEach(function(m) {
-    if (m !== 'Todos') selMod.innerHTML += '<option value="' + m + '">' + m + '</option>';
-  });
-  // Default: select most recent month
-  if (filtros.meses.length > 0) selMes.value = filtros.meses[0];
+  preencherSelect('sel-modelo', filtros.modelos, 'Todos');
+  preencherSelect('sel-centro-custo', filtros.centrosCusto || ['Todos'], 'Todos');
 }
 
 function aplicarFiltros() {
-  var mes = document.getElementById('sel-mes').value;
-  var oficina = document.getElementById('sel-oficina').value;
-  var modelo = document.getElementById('sel-modelo').value;
+  var mes = getSelectedValues('sel-mes', 'Todos');
+  var oficina = getSelectedValues('sel-oficina', 'Todas');
+  var modelo = getSelectedValues('sel-modelo', 'Todos');
+  var centroCusto = getSelectedValues('sel-centro-custo', 'Todos');
   document.getElementById('loading-overlay').style.display = 'flex';
   google.script.run
     .withSuccessHandler(function(data) {
@@ -634,22 +712,24 @@ function aplicarFiltros() {
       alert('Erro ao calcular KRs: ' + err.message);
       document.getElementById('loading-overlay').style.display = 'none';
     })
-    .calcularKRs(mes, oficina, modelo);
+    .calcularKRs(mes, oficina, modelo, centroCusto);
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────
 window.addEventListener('load', function() {
+  aplicarTemaSalvo();
   google.script.run
-    .withSuccessHandler(function(filtros) {
-      popularFiltros(filtros);
+    .withSuccessHandler(function(payload) {
+      popularFiltros(payload.filtros);
       document.getElementById('dashboard').style.display = 'block';
-      aplicarFiltros(); // Load with default (latest month)
+      renderDashboard(payload.dados);
+      document.getElementById('loading-overlay').style.display = 'none';
     })
     .withFailureHandler(function(err) {
       document.getElementById('loading-overlay').innerHTML =
         '<div style="color:#ef4444;font-size:14px;text-align:center;padding:32px">❌ Erro ao inicializar:<br>' + err.message + '</div>';
     })
-    .getFiltros();
+    .getDashboardInicial();
 });
 </script>
 </body>
