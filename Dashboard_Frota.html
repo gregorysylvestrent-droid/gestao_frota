@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Frota NorteTech</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1f2d42;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --accent-green: #10b981;
+    --accent-red: #ef4444;
+    --accent-amber: #f59e0b;
+    --accent-violet: #8b5cf6;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #475569;
+    --glow-blue: rgba(59,130,246,0.15);
+    --glow-green: rgba(16,185,129,0.15);
+    --glow-red: rgba(239,68,68,0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 13px; overflow-x: hidden; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(11,15,26,0.95); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 60px; display: flex; align-items: center; gap: 16px;
+  }
+  .topbar-brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+  .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .brand-name { font-weight: 700; font-size: 15px; letter-spacing: -.3px; color: var(--text-primary); }
+  .brand-sub { font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+
+  /* ── FILTROS ── */
+  .filter-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+  .filter-group { display: flex; flex-direction: column; gap: 2px; }
+  select {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text-primary);
+    padding: 5px 28px 5px 10px; border-radius: 6px; font-family: inherit; font-size: 12px;
+    cursor: pointer; outline: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+  }
+  select:focus { border-color: var(--accent-blue); }
+  .btn-apply {
+    background: var(--accent-blue); color: #fff; border: none;
+    padding: 6px 16px; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: .2s; white-space: nowrap;
+  }
+  .btn-apply:hover { background: #2563eb; }
+
+  /* ── LOADING OVERLAY ── */
+  #loading-overlay {
+    position: fixed; inset: 0; background: var(--bg); z-index: 9999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  }
+  .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent-blue); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--text-secondary); font-size: 13px; }
+
+  /* ── MAIN LAYOUT ── */
+  .dashboard { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── SECTION HEADER ── */
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .section-badge { width: 4px; height: 20px; border-radius: 2px; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .8px; }
+  .section-desc { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+
+  /* ── GRID HELPERS ── */
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .col-span-2 { grid-column: span 2; }
+
+  /* ── CARD BASE ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px; position: relative; overflow: hidden;
+    transition: border-color .2s, transform .2s;
+  }
+  .card:hover { border-color: #2d3f5a; transform: translateY(-1px); }
+  .card-glow { position: absolute; top: 0; left: 0; right: 0; height: 1px; border-radius: 12px 12px 0 0; }
+
+  /* ── KPI CARD ── */
+  .kpi-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .kpi-value { font-size: 36px; font-weight: 700; line-height: 1; letter-spacing: -1.5px; }
+  .kpi-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+  .kpi-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 100px; margin-top: 6px; }
+  .badge-up { background: rgba(16,185,129,.15); color: var(--accent-green); }
+  .badge-down { background: rgba(239,68,68,.15); color: var(--accent-red); }
+  .badge-neutral { background: rgba(59,130,246,.15); color: var(--accent-blue); }
+
+  /* ── GAUGE ── */
+  .gauge-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .gauge-svg-wrap { position: relative; width: 160px; height: 100px; }
+  .gauge-svg-wrap svg { width: 100%; height: 100%; }
+  .gauge-label-center {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    text-align: center; line-height: 1.2;
+  }
+  .gauge-pct { font-size: 26px; font-weight: 700; letter-spacing: -1px; }
+  .gauge-sub-label { font-size: 10px; color: var(--text-muted); }
+  .gauge-legend { display: flex; gap: 12px; }
+  .gauge-leg-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-muted); }
+  .gauge-leg-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+  /* ── TOP 5 TABLE ── */
+  .mini-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  .mini-table th { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+  .mini-table td { padding: 6px 6px; border-bottom: 1px solid rgba(31,45,66,.5); font-size: 12px; }
+  .mini-table tr:last-child td { border-bottom: none; }
+  .mini-table .rank { font-family: 'DM Mono', monospace; color: var(--text-muted); font-size: 11px; }
+  .mini-table .bar-cell { width: 80px; }
+  .mini-bar-bg { background: var(--border); border-radius: 2px; height: 5px; }
+  .mini-bar-fill { background: linear-gradient(90deg, var(--accent-red), #f97316); height: 5px; border-radius: 2px; transition: width .6s; }
+
+  /* ── CHART CARD ── */
+  .chart-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+  .chart-subtitle { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; }
+  .chart-container { position: relative; }
+
+  /* ── DOWNTIME COMPARISON ── */
+  .downtime-comparison { display: flex; gap: 20px; align-items: center; }
+  .dt-block { display: flex; flex-direction: column; gap: 3px; }
+  .dt-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+  .dt-value { font-size: 22px; font-weight: 700; letter-spacing: -1px; font-family: 'DM Mono', monospace; }
+  .dt-divider { width: 1px; height: 40px; background: var(--border); flex-shrink: 0; }
+  .dt-delta { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 100px; }
+
+  /* ── DONUT ── */
+  .donut-wrap { display: flex; align-items: center; gap: 20px; }
+  .donut-canvas-wrap { position: relative; width: 110px; height: 110px; flex-shrink: 0; }
+  .donut-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
+  .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .donut-pct { font-size: 20px; font-weight: 700; }
+  .donut-pct-lbl { font-size: 9px; color: var(--text-muted); }
+  .donut-legend { display: flex; flex-direction: column; gap: 6px; }
+  .donut-leg-row { display: flex; align-items: center; gap: 7px; }
+  .donut-leg-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .donut-leg-lbl { font-size: 11px; color: var(--text-secondary); }
+  .donut-leg-val { font-size: 11px; font-weight: 600; color: var(--text-primary); margin-left: auto; }
+
+  /* ── OS CARDS ── */
+  .os-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+  .os-stat-block { flex: 1; min-width: 70px; background: var(--surface2); border-radius: 8px; padding: 12px; text-align: center; }
+  .os-stat-num { font-size: 24px; font-weight: 700; font-family: 'DM Mono', monospace; }
+  .os-stat-lbl { font-size: 10px; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; letter-spacing: .4px; }
+  .progress-bar-wrap { margin-top: 12px; }
+  .progress-bar-lbl { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 5px; }
+  .progress-bar-bg { background: var(--border); border-radius: 100px; height: 7px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 100px; transition: width .8s; }
+
+  /* ── BACKLOG TABLE ── */
+  .backlog-table { width: 100%; border-collapse: collapse; }
+  .backlog-table th { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  .backlog-table td { padding: 7px 8px; border-bottom: 1px solid rgba(31,45,66,.4); font-size: 11px; white-space: nowrap; }
+  .backlog-table tr:last-child td { border-bottom: none; }
+  .backlog-table tr:hover td { background: rgba(255,255,255,.02); }
+  .dias-badge { display: inline-block; padding: 2px 7px; border-radius: 100px; font-size: 10px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .dias-critical { background: rgba(239,68,68,.15); color: var(--accent-red); }
+  .dias-warn { background: rgba(245,158,11,.15); color: var(--accent-amber); }
+  .dias-ok { background: rgba(59,130,246,.15); color: var(--accent-blue); }
+  .sit-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; background: var(--surface2); color: var(--text-secondary); }
+  .backlog-scroll { max-height: 280px; overflow-y: auto; }
+
+  /* ── PEÇAS CARD ── */
+  .pecas-wrap { display: flex; align-items: center; gap: 16px; }
+  .pecas-big { font-size: 48px; font-weight: 700; font-family: 'DM Mono', monospace; line-height: 1; }
+  .pecas-info { display: flex; flex-direction: column; gap: 6px; }
+  .pecas-row { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+  .pecas-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* ── MTTR BARS ── */
+  .mttr-rows { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+  .mttr-row { display: flex; align-items: center; gap: 10px; }
+  .mttr-name { font-size: 11px; color: var(--text-secondary); width: 80px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mttr-bar-bg { flex: 1; height: 8px; background: var(--border); border-radius: 100px; overflow: hidden; }
+  .mttr-bar-fill { height: 100%; border-radius: 100px; transition: width .8s; }
+  .mttr-val { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-primary); width: 52px; text-align: right; flex-shrink: 0; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1000px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    .col-span-2 { grid-column: span 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Carregando dados da planilha…</div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-dot"></div>
+    <div>
+      <div class="brand-name">NorteTech Fleet Intelligence</div>
+      <div class="brand-sub">GESTÃO DE MANUTENÇÃO</div>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Mês/Ano</span>
+    <select id="sel-mes"><option value="Todos">Todos os períodos</option></select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Oficina</span>
+    <select id="sel-oficina"><option value="Todas">Todas</option></select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Modelo</span>
+    <select id="sel-modelo"><option value="Todos">Todos</option></select>
+  </div>
+  <button class="btn-apply" onclick="aplicarFiltros()">▶ Aplicar</button>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboard" style="display:none">
+
+  <!-- ═══════════════════════════════════════════════════════ BLOCO 1 -->
+  <div>
+    <div class="section-header">
+      <div class="section-badge" style="background:var(--accent-cyan)"></div>
+      <span class="section-title">Visão Executiva — Saúde da Frota</span>
+      <span class="section-desc" id="periodo-label"></span>
+    </div>
+
+    <div class="grid-4">
+      <!-- KR1: Gauge Disponibilidade -->
+      <div class="card" style="background:linear-gradient(135deg,#111827 0%,#0d1b2e 100%)">
+        <div class="card-glow" style="background:linear-gradient(90deg,var(--accent-cyan),var(--accent-blue))"></div>
+        <div class="kpi-label">KR1 · Taxa de Disponibilidade</div>
+        <div class="gauge-wrapper">
+          <div class="gauge-svg-wrap" id="gauge-wrap">
+            <svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg" id="gauge-svg">
+              <!-- track -->
+              <path d="M20 90 A60 60 0 0 1 140 90" fill="none" stroke="#1f2d42" stroke-width="12" stroke-linecap="round"/>
+              <!-- fill -->
+              <path id="gauge-fill" d="M20 90 A60 60 0 0 1 140 90" fill="none" stroke="url(#gaugeGrad)" stroke-width="12" stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="188.5"/>
+              <defs>
+                <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#ef4444"/>
+                  <stop offset="50%" stop-color="#f59e0b"/>
+                  <stop offset="100%" stop-color="#10b981"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="gauge-label-center">
+              <div class="gauge-pct" id="gauge-pct" style="color:var(--accent-cyan)">—</div>
+              <div class="gauge-sub-label">disponível</div>
+            </div>
+          </div>
+          <div class="gauge-legend">
+            <div class="gauge-leg-item"><div class="gauge-leg-dot" style="background:#ef4444"></div>Crítico</div>
+            <div class="gauge-leg-item"><div class="gauge-leg-dot" style="background:#f59e0b"></div>Atenção</div>
+            <div class="gauge-leg-item"><div class="gauge-leg-dot" style="background:#10b981"></div>Ótimo</div>
+          </div>
+        </div>
+        <div class="kpi-sub" style="margin-top:8px;text-align:center" id="kr1-sub">—</div>
+      </div>
+
+      <!-- KR2: Downtime -->
+      <div class="card">
+        <div class="kpi-label">KR2 · Downtime Total da Frota</div>
+        <div class="downtime-comparison" id="kr2-block">
+          <div class="dt-block">
+            <div class="dt-label">Mês atual</div>
+            <div class="dt-value" id="dt-atual" style="color:var(--accent-blue)">—</div>
+            <div class="kpi-sub">horas paradas</div>
+          </div>
+          <div class="dt-divider"></div>
+          <div class="dt-block">
+            <div class="dt-label">Mês anterior</div>
+            <div class="dt-value" id="dt-anterior" style="color:var(--text-muted)">—</div>
+            <div class="kpi-sub">horas paradas</div>
+          </div>
+        </div>
+        <div id="dt-delta" style="margin-top:10px"></div>
+        <div class="kpi-sub" style="margin-top:6px">Δ horas em manutenção</div>
+      </div>
+
+      <!-- KR7: Taxa de Encerramento de OS -->
+      <div class="card">
+        <div class="kpi-label">KR7 · Taxa de Encerramento de OS</div>
+        <div class="os-stats" id="kr7-stats"></div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-lbl">
+            <span>Progresso de encerramento</span>
+            <span id="kr7-pct">—</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="kr7-bar" style="background:linear-gradient(90deg,var(--accent-blue),var(--accent-cyan));width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KR9: Lançamento de Peças -->
+      <div class="card">
+        <div class="kpi-label">KR9 · Qualidade de Lançamento de Peças</div>
+        <div class="pecas-wrap">
+          <div class="pecas-big" id="kr9-pct" style="color:var(--accent-green)">—</div>
+          <div class="pecas-info" id="kr9-info"></div>
+        </div>
+        <div class="kpi-sub" style="margin-top:10px">% OSs com itens registrados</div>
+        <div class="progress-bar-wrap" style="margin-top:8px">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="kr9-bar" style="background:linear-gradient(90deg,var(--accent-green),#34d399);width:0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ BLOCO 2 -->
+  <div>
+    <div class="section-header">
+      <div class="section-badge" style="background:var(--accent-blue)"></div>
+      <span class="section-title">Eficiência e Produtividade — Visão Operacional</span>
+    </div>
+
+    <div class="grid-3">
+      <!-- KR3: Top 5 Ofensores -->
+      <div class="card">
+        <div class="chart-title">KR3 · Top 5 Veículos Ofensores</div>
+        <div class="chart-subtitle">Maior downtime acumulado no período</div>
+        <table class="mini-table">
+          <thead><tr><th>#</th><th>Placa</th><th>Horas</th><th class="bar-cell"></th></tr></thead>
+          <tbody id="kr3-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- KR4: MTTR por grupo -->
+      <div class="card">
+        <div class="chart-title">KR4 · MTTR por Tipo de Oficina</div>
+        <div class="chart-subtitle">Tempo médio de reparo (horas)</div>
+        <div class="mttr-rows" id="kr4-rows"></div>
+      </div>
+
+      <!-- KR5: Same-day Leve -->
+      <div class="card">
+        <div class="chart-title">KR5 · Giro Rápido — Oficina Leve</div>
+        <div class="chart-subtitle">Serviços same-day (entrada e saída no mesmo dia)</div>
+        <div class="donut-wrap">
+          <div class="donut-canvas-wrap">
+            <canvas id="donut-leve"></canvas>
+            <div class="donut-center">
+              <div class="donut-pct" id="donut-pct" style="color:var(--accent-green)">—</div>
+              <div class="donut-pct-lbl">same-day</div>
+            </div>
+          </div>
+          <div class="donut-legend" id="kr5-legend"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ BLOCO 3 — Charts -->
+  <div class="grid-2">
+    <!-- KR6: Preventiva vs Corretiva -->
+    <div class="card">
+      <div class="chart-title">KR6 · Preventiva vs Corretiva — Evolução Mensal</div>
+      <div class="chart-subtitle">Volume de OSs por tipo nos últimos meses</div>
+      <div class="chart-container" style="height:220px">
+        <canvas id="chart-prev-corr"></canvas>
+      </div>
+    </div>
+
+    <!-- KR8: Backlog -->
+    <div class="card">
+      <div class="chart-title">KR8 · Backlog de Manutenção</div>
+      <div class="chart-subtitle">OSs abertas há mais de 5 dias (mais críticas primeiro)</div>
+      <div class="backlog-scroll">
+        <table class="backlog-table">
+          <thead><tr>
+            <th>OS</th><th>Placa</th><th>Oficina</th><th>Abertura</th><th>Dias</th><th>Situação</th>
+          </tr></thead>
+          <tbody id="kr8-tbody"></tbody>
+        </table>
+        <div id="kr8-empty" style="display:none;text-align:center;padding:32px;color:var(--accent-green);font-size:13px">
+          ✅ Nenhum backlog crítico no período
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /dashboard -->
+
+<script>
+// ── CHARTS ──────────────────────────────────────────────────────────
+var chartPrevCorr = null;
+var chartDonutLeve = null;
+
+var CF = {
+  bg: '#0b0f1a', surface: '#111827', border: '#1f2d42',
+  blue: '#3b82f6', cyan: '#06b6d4', green: '#10b981',
+  red: '#ef4444', amber: '#f59e0b', violet: '#8b5cf6',
+  text: '#94a3b8', muted: '#475569'
+};
+
+Chart.defaults.color = CF.text;
+Chart.defaults.borderColor = CF.border;
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+function buildCharts(d) {
+  // Destroy previous
+  if (chartPrevCorr) { chartPrevCorr.destroy(); chartPrevCorr = null; }
+  if (chartDonutLeve) { chartDonutLeve.destroy(); chartDonutLeve = null; }
+
+  // KR6 — Stacked bar
+  var pc = d.kr6.prevCorr;
+  chartPrevCorr = new Chart(document.getElementById('chart-prev-corr'), {
+    type: 'bar',
+    data: {
+      labels: pc.map(function(r){ return r.mes; }),
+      datasets: [
+        { label: 'Preventiva', data: pc.map(function(r){ return r.preventiva; }),
+          backgroundColor: 'rgba(59,130,246,.75)', borderRadius: 4, stack: 'a' },
+        { label: 'Corretiva', data: pc.map(function(r){ return r.corretiva; }),
+          backgroundColor: 'rgba(239,68,68,.75)', borderRadius: 4, stack: 'a' },
+        { label: 'Outros', data: pc.map(function(r){ return r.outros; }),
+          backgroundColor: 'rgba(148,163,184,.35)', borderRadius: 4, stack: 'a' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { boxWidth: 10, padding: 14, font: { size: 11 } } },
+                 tooltip: { mode: 'index', intersect: false } },
+      scales: {
+        x: { grid: { color: CF.border }, ticks: { font: { size: 10 } } },
+        y: { grid: { color: CF.border }, stacked: true, ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+
+  // KR5 — Donut
+  var same = d.kr5.sameDayCount;
+  var other = d.kr5.totalOsLeve - same;
+  chartDonutLeve = new Chart(document.getElementById('donut-leve'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Same-Day', 'Multi-Day'],
+      datasets: [{ data: [same, other],
+        backgroundColor: ['rgba(16,185,129,.8)', 'rgba(31,45,66,.9)'],
+        borderColor: [CF.green, CF.border],
+        borderWidth: 1.5, hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '72%',
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: function(c) { return ' ' + c.label + ': ' + c.raw; }
+      }}}
+    }
+  });
+}
+
+// ── RENDER DATA ──────────────────────────────────────────────────────
+function renderDashboard(d) {
+
+  // ─ KR1: Gauge
+  var pct = d.kr1.taxaDisponibilidade;
+  var color = pct >= 90 ? '#10b981' : pct >= 75 ? '#f59e0b' : '#ef4444';
+  document.getElementById('gauge-pct').textContent = pct.toFixed(1) + '%';
+  document.getElementById('gauge-pct').style.color = color;
+  // Animate gauge: 188.5 = full arc circumference (180° semicircle)
+  var dashOffset = 188.5 - (188.5 * pct / 100);
+  document.getElementById('gauge-fill').style.strokeDashoffset = dashOffset;
+  document.getElementById('kr1-sub').textContent =
+    d.kr1.totalPlacas + ' veículos · ' + d.kr1.downtimeHoras.toLocaleString('pt-BR') + ' h paradas';
+
+  // ─ KR2: Downtime
+  document.getElementById('dt-atual').textContent = d.kr2.downtimeMesAtual.toLocaleString('pt-BR');
+  document.getElementById('dt-anterior').textContent = d.kr2.downtimeMesAnterior.toLocaleString('pt-BR');
+  var delta = d.kr2.variacaoPct;
+  var deltaEl = document.getElementById('dt-delta');
+  if (d.kr2.downtimeMesAnterior > 0) {
+    var isGood = delta < 0;
+    deltaEl.innerHTML = '<span class="dt-delta" style="background:' +
+      (isGood ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.15)') + ';color:' +
+      (isGood ? '#10b981' : '#ef4444') + '">' +
+      (delta > 0 ? '▲ +' : '▼ ') + delta.toFixed(1) + '% vs mês anterior</span>';
+  } else {
+    deltaEl.innerHTML = '<span class="kpi-sub">Sem dados do mês anterior</span>';
+  }
+
+  // ─ KR3: Top 5
+  var tbody3 = document.getElementById('kr3-tbody');
+  tbody3.innerHTML = '';
+  var max3 = d.kr3.top5.length > 0 ? d.kr3.top5[0].horas : 1;
+  d.kr3.top5.forEach(function(item, i) {
+    var pct3 = (item.horas / max3) * 100;
+    tbody3.innerHTML += '<tr>' +
+      '<td class="rank">' + (i+1) + '</td>' +
+      '<td><strong>' + item.placa + '</strong></td>' +
+      '<td style="font-family:\'DM Mono\',monospace;color:var(--accent-red)">' + item.horas.toLocaleString('pt-BR') + ' h</td>' +
+      '<td class="bar-cell"><div class="mini-bar-bg"><div class="mini-bar-fill" style="width:' + pct3 + '%"></div></div></td>' +
+      '</tr>';
+  });
+  if (d.kr3.top5.length === 0) tbody3.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:16px">Sem dados</td></tr>';
+
+  // ─ KR4: MTTR
+  var kr4Rows = document.getElementById('kr4-rows');
+  kr4Rows.innerHTML = '';
+  var grupos = { 'PESADA': { label: 'Frota Pesada', color: '#8b5cf6' }, 'LANCHAS': { label: 'Lanchas/Motos', color: '#06b6d4' },
+                 'FUNILARIA': { label: 'Funilaria', color: '#f59e0b' }, 'LEVE': { label: 'Frota Leve', color: '#10b981' } };
+  var maxMttr = 1;
+  Object.keys(grupos).forEach(function(g) { if (d.kr4.mttrPorGrupo[g] && d.kr4.mttrPorGrupo[g].mttr > maxMttr) maxMttr = d.kr4.mttrPorGrupo[g].mttr; });
+  Object.keys(grupos).forEach(function(g) {
+    var info = d.kr4.mttrPorGrupo[g] || { mttr: 0, total: 0 };
+    var pct4 = maxMttr > 0 ? (info.mttr / maxMttr) * 100 : 0;
+    kr4Rows.innerHTML += '<div class="mttr-row">' +
+      '<div class="mttr-name" title="' + grupos[g].label + '">' + grupos[g].label + '</div>' +
+      '<div class="mttr-bar-bg"><div class="mttr-bar-fill" style="width:' + pct4 + '%;background:' + grupos[g].color + '"></div></div>' +
+      '<div class="mttr-val">' + info.mttr.toLocaleString('pt-BR') + 'h</div>' +
+      '</div>' +
+      '<div style="font-size:10px;color:var(--text-muted);text-align:right;margin-top:-6px;margin-bottom:2px">' + info.total + ' OSs</div>';
+  });
+
+  // ─ KR5: Same-day
+  document.getElementById('donut-pct').textContent = d.kr5.pctSameDay.toFixed(1) + '%';
+  var pctSD = d.kr5.pctSameDay;
+  document.getElementById('donut-pct').style.color = pctSD >= 60 ? '#10b981' : pctSD >= 40 ? '#f59e0b' : '#ef4444';
+  document.getElementById('kr5-legend').innerHTML =
+    '<div class="donut-leg-row"><div class="donut-leg-dot" style="background:#10b981"></div><span class="donut-leg-lbl">Same-Day</span><span class="donut-leg-val">' + d.kr5.sameDayCount + '</span></div>' +
+    '<div class="donut-leg-row"><div class="donut-leg-dot" style="background:#1f2d42"></div><span class="donut-leg-lbl">Multi-Day</span><span class="donut-leg-val">' + (d.kr5.totalOsLeve - d.kr5.sameDayCount) + '</span></div>' +
+    '<div class="donut-leg-row" style="margin-top:6px"><div class="donut-leg-dot" style="background:transparent"></div><span class="donut-leg-lbl" style="color:var(--text-muted)">Total OSs</span><span class="donut-leg-val">' + d.kr5.totalOsLeve + '</span></div>';
+
+  // ─ KR7: OS Encerramento
+  var txEnc = d.kr7.taxaEncerramento;
+  var encColor = txEnc >= 95 ? '#10b981' : txEnc >= 80 ? '#f59e0b' : '#ef4444';
+  document.getElementById('kr7-stats').innerHTML =
+    '<div class="os-stat-block"><div class="os-stat-num" style="color:var(--accent-blue)">' + d.kr7.totalOs.toLocaleString('pt-BR') + '</div><div class="os-stat-lbl">Total OS</div></div>' +
+    '<div class="os-stat-block"><div class="os-stat-num" style="color:var(--accent-green)">' + d.kr7.finalizadas.toLocaleString('pt-BR') + '</div><div class="os-stat-lbl">Finalizadas</div></div>' +
+    '<div class="os-stat-block"><div class="os-stat-num" style="color:var(--accent-red)">' + d.kr7.abertas.toLocaleString('pt-BR') + '</div><div class="os-stat-lbl">Em aberto</div></div>';
+  document.getElementById('kr7-pct').textContent = txEnc.toFixed(1) + '%';
+  document.getElementById('kr7-pct').style.color = encColor;
+  document.getElementById('kr7-bar').style.width = txEnc + '%';
+  document.getElementById('kr7-bar').style.background = 'linear-gradient(90deg,' + encColor + ',#34d399)';
+
+  // ─ KR8: Backlog
+  var tbody8 = document.getElementById('kr8-tbody');
+  tbody8.innerHTML = '';
+  if (d.kr8.backlog.length === 0) {
+    tbody8.innerHTML = '';
+    document.getElementById('kr8-empty').style.display = 'block';
+  } else {
+    document.getElementById('kr8-empty').style.display = 'none';
+    d.kr8.backlog.forEach(function(item) {
+      var diasClass = item.dias >= 30 ? 'dias-critical' : item.dias >= 15 ? 'dias-warn' : 'dias-ok';
+      tbody8.innerHTML += '<tr>' +
+        '<td style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text-muted)">' + item.cod_osm + '</td>' +
+        '<td><strong>' + (item.placa || '—') + '</strong></td>' +
+        '<td style="color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis">' + (item.oficina || '—') + '</td>' +
+        '<td style="color:var(--text-muted)">' + (item.abertura || '—') + '</td>' +
+        '<td><span class="dias-badge ' + diasClass + '">' + item.dias + 'd</span></td>' +
+        '<td><span class="sit-badge">' + (item.situacao || '—') + '</span></td>' +
+        '</tr>';
+    });
+  }
+
+  // ─ KR9: Peças
+  var pctPecas = d.kr9.pctLancamento;
+  document.getElementById('kr9-pct').textContent = pctPecas.toFixed(1) + '%';
+  document.getElementById('kr9-pct').style.color = pctPecas >= 90 ? '#10b981' : pctPecas >= 70 ? '#f59e0b' : '#ef4444';
+  document.getElementById('kr9-info').innerHTML =
+    '<div class="pecas-row"><div class="pecas-dot" style="background:#10b981"></div><span style="color:var(--text-secondary)">Com itens:</span> <strong>' + d.kr9.comItens.toLocaleString('pt-BR') + ' OS</strong></div>' +
+    '<div class="pecas-row"><div class="pecas-dot" style="background:#ef4444"></div><span style="color:var(--text-secondary)">Sem itens:</span> <strong style="color:var(--accent-red)">' + d.kr9.semItens.toLocaleString('pt-BR') + ' OS</strong></div>';
+  document.getElementById('kr9-bar').style.width = pctPecas + '%';
+  document.getElementById('kr9-bar').style.background = pctPecas >= 90
+    ? 'linear-gradient(90deg,#10b981,#34d399)'
+    : 'linear-gradient(90deg,#f59e0b,#fbbf24)';
+
+  // ─ Labels
+  document.getElementById('periodo-label').textContent =
+    (d.filtroMes && d.filtroMes !== 'Todos' ? 'Período: ' + d.filtroMes : 'Todos os períodos') +
+    (d.filtroOficina && d.filtroOficina !== 'Todas' ? ' · ' + d.filtroOficina : '') +
+    (d.filtroModelo && d.filtroModelo !== 'Todos' ? ' · ' + d.filtroModelo : '');
+
+  // ─ Build charts
+  buildCharts(d);
+}
+
+// ── FILTROS ──────────────────────────────────────────────────────────
+function popularFiltros(filtros) {
+  var selMes = document.getElementById('sel-mes');
+  var selOf = document.getElementById('sel-oficina');
+  var selMod = document.getElementById('sel-modelo');
+  selMes.innerHTML = '<option value="Todos">Todos os períodos</option>';
+  filtros.meses.forEach(function(m) {
+    selMes.innerHTML += '<option value="' + m + '">' + m + '</option>';
+  });
+  selOf.innerHTML = '';
+  filtros.oficinas.forEach(function(o) {
+    selOf.innerHTML += '<option value="' + o + '">' + (o.replace('NORTE TECH SERVICOS EM ENERGIA LTDA - ', '').replace('NORTE TECH SERVIÇOS EM ENERGIA LTDA - ', '')) + '</option>';
+  });
+  selMod.innerHTML = '<option value="Todos">Todos</option>';
+  filtros.modelos.forEach(function(m) {
+    if (m !== 'Todos') selMod.innerHTML += '<option value="' + m + '">' + m + '</option>';
+  });
+  // Default: select most recent month
+  if (filtros.meses.length > 0) selMes.value = filtros.meses[0];
+}
+
+function aplicarFiltros() {
+  var mes = document.getElementById('sel-mes').value;
+  var oficina = document.getElementById('sel-oficina').value;
+  var modelo = document.getElementById('sel-modelo').value;
+  document.getElementById('loading-overlay').style.display = 'flex';
+  google.script.run
+    .withSuccessHandler(function(data) {
+      renderDashboard(data);
+      document.getElementById('loading-overlay').style.display = 'none';
+    })
+    .withFailureHandler(function(err) {
+      alert('Erro ao calcular KRs: ' + err.message);
+      document.getElementById('loading-overlay').style.display = 'none';
+    })
+    .calcularKRs(mes, oficina, modelo);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+window.addEventListener('load', function() {
+  google.script.run
+    .withSuccessHandler(function(filtros) {
+      popularFiltros(filtros);
+      document.getElementById('dashboard').style.display = 'block';
+      aplicarFiltros(); // Load with default (latest month)
+    })
+    .withFailureHandler(function(err) {
+      document.getElementById('loading-overlay').innerHTML =
+        '<div style="color:#ef4444;font-size:14px;text-align:center;padding:32px">❌ Erro ao inicializar:<br>' + err.message + '</div>';
+    })
+    .getFiltros();
+});
+</script>
+</body>
+</html>
