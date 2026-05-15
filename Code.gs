@@ -14,6 +14,15 @@ var SPREADSHEET_ID = "";
 // Horas disponíveis por veículo por mês (ajuste conforme sua operação)
 var HORAS_OPERACAO_DIA = 12;
 
+var CACHE_TTL_SEGUNDOS = 300;
+var CACHE_CHUNK_SIZE = 90000;
+var CAMPOS_DASHBOARD = [
+  "ref_manutencao", "oficina", "modelo_veiculo", "centro_custo",
+  "placa", "cod_osm", "data_abertura", "data_saida",
+  "tipo_manutencao", "situacao_osm", "cod_manu_item"
+];
+var DADOS_CACHE_MEMORIA = {};
+
 // ------------------------------------------------------------------
 // MENU PERSONALIZADO
 // ------------------------------------------------------------------
@@ -22,6 +31,7 @@ function onOpen() {
     .createMenu("📊 Dashboard Frota")
     .addItem("Abrir Dashboard", "abrirDashboard")
     .addItem("Ver link do App Web", "mostrarLinkAppWeb")
+    .addItem("Atualizar dados do Dashboard", "limparCacheDashboard")
     .addToUi();
 }
 
@@ -72,24 +82,100 @@ function getSpreadsheetDashboard() {
   return ss;
 }
 
+function getCacheDadosKey(sheet) {
+  return ["dadosDashboard", sheet.getParent().getId(), sheet.getSheetId(), sheet.getLastRow(), sheet.getLastColumn()].join(":");
+}
+
+function getCacheChunkKey(baseKey, index) {
+  return baseKey + ":chunk:" + index;
+}
+
+function getJsonCache(baseKey) {
+  try {
+    var cache = CacheService.getScriptCache();
+    var metaRaw = cache.get(baseKey + ":meta");
+    if (!metaRaw) return null;
+    var meta = JSON.parse(metaRaw);
+    var partes = [];
+    for (var i = 0; i < meta.chunks; i++) {
+      var parte = cache.get(getCacheChunkKey(baseKey, i));
+      if (parte === null) return null;
+      partes.push(parte);
+    }
+    return JSON.parse(partes.join(""));
+  } catch (e) {
+    return null;
+  }
+}
+
+function putJsonCache(baseKey, valor, ttlSegundos) {
+  try {
+    var cache = CacheService.getScriptCache();
+    var json = JSON.stringify(valor);
+    var chunks = Math.ceil(json.length / CACHE_CHUNK_SIZE);
+    var itens = {};
+    for (var i = 0; i < chunks; i++) {
+      itens[getCacheChunkKey(baseKey, i)] = json.slice(i * CACHE_CHUNK_SIZE, (i + 1) * CACHE_CHUNK_SIZE);
+    }
+    itens[baseKey + ":meta"] = JSON.stringify({ chunks: chunks });
+    cache.putAll(itens, ttlSegundos || CACHE_TTL_SEGUNDOS);
+  } catch (e) {
+    // Se o volume exceder o limite do CacheService, o dashboard segue funcionando sem cache.
+  }
+}
+
+function limparCacheDashboard() {
+  DADOS_CACHE_MEMORIA = {};
+  getDadosBrutos(true);
+  SpreadsheetApp.getUi().alert("Dados do dashboard recarregados da planilha.");
+}
+
+function montarRowsDashboard(data, headers) {
+  var indices = {};
+  headers.forEach(function(h, i) { indices[h] = i; });
+
+  var rows = [];
+  for (var i = 1; i < data.length; i++) {
+    var obj = {};
+    var temValor = false;
+    CAMPOS_DASHBOARD.forEach(function(campo) {
+      var idx = indices[campo];
+      var val = idx !== undefined ? data[i][idx] : "";
+      if (val !== "" && val !== null && val !== undefined) temValor = true;
+      obj[campo] = val;
+    });
+    if (temValor) rows.push(obj);
+  }
+  return rows;
+}
+
 // ------------------------------------------------------------------
 // LEITURA PRINCIPAL DE DADOS DA PLANILHA
 // ------------------------------------------------------------------
-function getDadosBrutos() {
+function getDadosBrutos(forceRefresh) {
   var ss = getSpreadsheetDashboard();
   var sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) throw new Error("Aba '" + SHEET_NAME + "' não encontrada.");
 
-  var data = sheet.getDataRange().getValues();
-  var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
-  var rows = [];
-  for (var i = 1; i < data.length; i++) {
-    var obj = {};
-    for (var j = 0; j < headers.length; j++) {
-      obj[headers[j]] = data[i][j];
+  var cacheKey = getCacheDadosKey(sheet);
+  if (!forceRefresh) {
+    if (DADOS_CACHE_MEMORIA[cacheKey]) return DADOS_CACHE_MEMORIA[cacheKey];
+    var rowsCache = getJsonCache(cacheKey);
+    if (rowsCache) {
+      DADOS_CACHE_MEMORIA[cacheKey] = rowsCache;
+      return rowsCache;
     }
-    rows.push(obj);
   }
+
+  var lastRow = sheet.getLastRow();
+  var lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn < 1) return [];
+
+  var data = sheet.getRange(1, 1, lastRow, lastColumn).getValues();
+  var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
+  var rows = montarRowsDashboard(data, headers);
+  DADOS_CACHE_MEMORIA[cacheKey] = rows;
+  putJsonCache(cacheKey, rows, CACHE_TTL_SEGUNDOS);
   return rows;
 }
 

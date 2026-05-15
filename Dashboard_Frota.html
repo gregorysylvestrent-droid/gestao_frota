@@ -87,6 +87,34 @@
     cursor: pointer; transition: .2s; white-space: nowrap;
   }
   .btn-theme:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+  .multi-filter { position: relative; min-width: 180px; }
+  .filter-trigger {
+    width: 100%; min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text-primary);
+    padding: 6px 10px; border-radius: 6px; font-family: inherit; font-size: 12px; cursor: pointer;
+  }
+  .filter-trigger::after { content: '▾'; color: var(--text-muted); font-size: 10px; }
+  .filter-trigger:hover, .filter-trigger:focus { border-color: var(--accent-blue); outline: none; }
+  .filter-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filter-menu {
+    position: absolute; top: calc(100% + 6px); left: 0; width: 260px; max-width: 80vw;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.25); padding: 10px; display: none; z-index: 300;
+  }
+  .multi-filter.open .filter-menu { display: block; }
+  .filter-search {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text-primary);
+    border-radius: 6px; padding: 7px 9px; font-family: inherit; font-size: 12px; outline: none; margin-bottom: 8px;
+  }
+  .filter-search:focus { border-color: var(--accent-blue); }
+  .filter-options { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+  .filter-option { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px; }
+  .filter-option:hover { background: var(--surface2); color: var(--text-primary); }
+  .filter-option input { accent-color: var(--accent-blue); flex-shrink: 0; }
+  .filter-empty { color: var(--text-muted); font-size: 11px; text-align: center; padding: 10px; }
+  .filter-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .filter-mini-btn { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text-secondary); border-radius: 6px; padding: 5px; font-size: 11px; cursor: pointer; }
+  .filter-mini-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 
   /* ── LOADING OVERLAY ── */
   #loading-overlay {
@@ -246,20 +274,19 @@
 
   <div class="filter-group">
     <span class="filter-label">Mês/Ano</span>
-    <select id="sel-mes" multiple size="4"><option value="Todos">Todos os períodos</option></select>
-    <span class="filter-hint">Ctrl/Cmd para múltiplos</span>
+    <div class="multi-filter" id="filter-mes"></div>
   </div>
   <div class="filter-group">
     <span class="filter-label">Oficina</span>
-    <select id="sel-oficina" multiple size="4"><option value="Todas">Todas</option></select>
+    <div class="multi-filter" id="filter-oficina"></div>
   </div>
   <div class="filter-group">
     <span class="filter-label">Modelo</span>
-    <select id="sel-modelo" multiple size="4"><option value="Todos">Todos</option></select>
+    <div class="multi-filter" id="filter-modelo"></div>
   </div>
   <div class="filter-group">
     <span class="filter-label">Centro Custo</span>
-    <select id="sel-centro-custo" multiple size="4"><option value="Todos">Todos</option></select>
+    <div class="multi-filter" id="filter-centro-custo"></div>
   </div>
   <button class="btn-apply" onclick="aplicarFiltros()">▶ Aplicar</button>
   <button class="btn-theme" id="btn-theme" onclick="alternarTema()" title="Alternar entre modo claro e escuro">☀️ Claro</button>
@@ -656,52 +683,193 @@ function renderDashboard(d) {
 }
 
 // ── FILTROS ──────────────────────────────────────────────────────────
-function selecionarApenasTodosQuandoNecessario(selectEl, valorTodos) {
-  var valores = Array.prototype.map.call(selectEl.selectedOptions, function(opt) { return opt.value; });
-  if (valores.length === 0) {
-    selectEl.querySelector('option[value="' + valorTodos + '"]').selected = true;
+var filtrosUI = {};
+
+function normalizarTextoBusca(txt) {
+  return String(txt || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function fecharFiltrosAbertos(excetoKey) {
+  Object.keys(filtrosUI).forEach(function(key) {
+    if (key !== excetoKey) document.getElementById('filter-' + key).classList.remove('open');
+  });
+}
+
+function toggleFilterMenu(key) {
+  var el = document.getElementById('filter-' + key);
+  var vaiAbrir = !el.classList.contains('open');
+  fecharFiltrosAbertos(key);
+  el.classList.toggle('open', vaiAbrir);
+  if (vaiAbrir) {
+    var input = document.getElementById('filter-' + key + '-search');
+    input.focus();
+    filtrarOpcoes(key);
+  }
+}
+
+function criarFiltro(key, opcoes, valorTodos, valorPadrao, formatador) {
+  filtrosUI[key] = {
+    valorTodos: valorTodos,
+    opcoes: opcoes.map(function(opcao) {
+      return { value: opcao, label: formatador ? formatador(opcao) : opcao };
+    })
+  };
+
+  var root = document.getElementById('filter-' + key);
+  root.innerHTML = '';
+  root.onclick = function(ev) { ev.stopPropagation(); };
+
+  var trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'filter-trigger';
+  trigger.onclick = function() { toggleFilterMenu(key); };
+  var summary = document.createElement('span');
+  summary.className = 'filter-summary';
+  summary.id = 'filter-' + key + '-summary';
+  summary.textContent = 'Todos';
+  trigger.appendChild(summary);
+
+  var menu = document.createElement('div');
+  menu.className = 'filter-menu';
+  menu.onclick = function(ev) { ev.stopPropagation(); };
+
+  var search = document.createElement('input');
+  search.type = 'search';
+  search.className = 'filter-search';
+  search.id = 'filter-' + key + '-search';
+  search.placeholder = 'Pesquisar...';
+  search.oninput = function() { filtrarOpcoes(key); };
+
+  var options = document.createElement('div');
+  options.className = 'filter-options';
+  options.id = 'filter-' + key + '-options';
+
+  var actions = document.createElement('div');
+  actions.className = 'filter-actions';
+  actions.innerHTML = '<button type="button" class="filter-mini-btn">Todos</button><button type="button" class="filter-mini-btn">Limpar busca</button>';
+  actions.children[0].onclick = function() { selecionarTodosFiltro(key); };
+  actions.children[1].onclick = function() { limparBuscaFiltro(key); };
+
+  menu.appendChild(search);
+  menu.appendChild(options);
+  menu.appendChild(actions);
+  root.appendChild(trigger);
+  root.appendChild(menu);
+
+  renderizarOpcoesFiltro(key, valorPadrao || valorTodos);
+  atualizarResumoFiltro(key);
+}
+
+function renderizarOpcoesFiltro(key, valorPadrao) {
+  var cfg = filtrosUI[key];
+  var optionsEl = document.getElementById('filter-' + key + '-options');
+  optionsEl.innerHTML = '';
+  cfg.opcoes.forEach(function(opcao) {
+    var label = document.createElement('label');
+    label.className = 'filter-option';
+    label.dataset.search = normalizarTextoBusca(opcao.label + ' ' + opcao.value);
+
+    var input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = opcao.value;
+    input.checked = opcao.value === valorPadrao;
+    input.onchange = function() { atualizarSelecaoFiltro(key, opcao.value); };
+
+    var span = document.createElement('span');
+    span.textContent = opcao.label;
+
+    label.appendChild(input);
+    label.appendChild(span);
+    optionsEl.appendChild(label);
+  });
+}
+
+function getCheckboxesFiltro(key) {
+  return Array.prototype.slice.call(document.querySelectorAll('#filter-' + key + '-options input[type="checkbox"]'));
+}
+
+function atualizarSelecaoFiltro(key, valorAlterado) {
+  var cfg = filtrosUI[key];
+  var checks = getCheckboxesFiltro(key);
+  var allCheck = checks.filter(function(c) { return c.value === cfg.valorTodos; })[0];
+
+  if (valorAlterado === cfg.valorTodos && allCheck && allCheck.checked) {
+    checks.forEach(function(c) { if (c.value !== cfg.valorTodos) c.checked = false; });
+  } else {
+    if (allCheck) allCheck.checked = false;
+  }
+
+  if (!checks.some(function(c) { return c.checked; }) && allCheck) allCheck.checked = true;
+  atualizarResumoFiltro(key);
+}
+
+function selecionarTodosFiltro(key) {
+  var cfg = filtrosUI[key];
+  getCheckboxesFiltro(key).forEach(function(c) { c.checked = c.value === cfg.valorTodos; });
+  atualizarResumoFiltro(key);
+}
+
+function limparBuscaFiltro(key) {
+  document.getElementById('filter-' + key + '-search').value = '';
+  filtrarOpcoes(key);
+}
+
+function filtrarOpcoes(key) {
+  var termo = normalizarTextoBusca(document.getElementById('filter-' + key + '-search').value);
+  var visiveis = 0;
+  Array.prototype.forEach.call(document.querySelectorAll('#filter-' + key + '-options .filter-option'), function(label) {
+    var match = !termo || label.dataset.search.indexOf(termo) !== -1;
+    label.style.display = match ? 'flex' : 'none';
+    if (match) visiveis++;
+  });
+
+  var optionsEl = document.getElementById('filter-' + key + '-options');
+  var empty = optionsEl.querySelector('.filter-empty');
+  if (!empty) {
+    empty = document.createElement('div');
+    empty.className = 'filter-empty';
+    empty.textContent = 'Nenhuma opção encontrada';
+    optionsEl.appendChild(empty);
+  }
+  empty.style.display = visiveis === 0 ? 'block' : 'none';
+}
+
+function getSelectedValues(key) {
+  var cfg = filtrosUI[key];
+  var valores = getCheckboxesFiltro(key).filter(function(c) { return c.checked; }).map(function(c) { return c.value; });
+  return valores.length > 0 ? valores : [cfg.valorTodos];
+}
+
+function atualizarResumoFiltro(key) {
+  var cfg = filtrosUI[key];
+  var selecionados = getSelectedValues(key);
+  var summary = document.getElementById('filter-' + key + '-summary');
+  if (selecionados.indexOf(cfg.valorTodos) !== -1) {
+    var allOpt = cfg.opcoes.filter(function(o) { return o.value === cfg.valorTodos; })[0];
+    summary.textContent = allOpt ? allOpt.label : 'Todos';
     return;
   }
-  if (valores.indexOf(valorTodos) !== -1 && valores.length > 1) {
-    selectEl.querySelector('option[value="' + valorTodos + '"]').selected = false;
-  }
-}
-
-function getSelectedValues(id, valorTodos) {
-  var selectEl = document.getElementById(id);
-  selecionarApenasTodosQuandoNecessario(selectEl, valorTodos);
-  var valores = Array.prototype.map.call(selectEl.selectedOptions, function(opt) { return opt.value; });
-  return valores.length > 0 ? valores : [valorTodos];
-}
-
-function preencherSelect(id, opcoes, valorPadrao, formatador) {
-  var selectEl = document.getElementById(id);
-  selectEl.innerHTML = '';
-  opcoes.forEach(function(opcao) {
-    var opt = document.createElement('option');
-    opt.value = opcao;
-    opt.textContent = formatador ? formatador(opcao) : opcao;
-    if (opcao === valorPadrao) opt.selected = true;
-    selectEl.appendChild(opt);
-  });
+  var labels = cfg.opcoes.filter(function(o) { return selecionados.indexOf(o.value) !== -1; }).map(function(o) { return o.label; });
+  summary.textContent = labels.length <= 2 ? labels.join(', ') : labels.length + ' selecionados';
 }
 
 function popularFiltros(filtros) {
-  preencherSelect('sel-mes', ['Todos'].concat(filtros.meses), filtros.meses.length > 0 ? filtros.meses[0] : 'Todos', function(m) {
+  criarFiltro('mes', ['Todos'].concat(filtros.meses), 'Todos', filtros.meses.length > 0 ? filtros.meses[0] : 'Todos', function(m) {
     return m === 'Todos' ? 'Todos os períodos' : m;
   });
-  preencherSelect('sel-oficina', filtros.oficinas, 'Todas', function(o) {
+  criarFiltro('oficina', filtros.oficinas, 'Todas', 'Todas', function(o) {
     return o.replace('NORTE TECH SERVICOS EM ENERGIA LTDA - ', '').replace('NORTE TECH SERVIÇOS EM ENERGIA LTDA - ', '');
   });
-  preencherSelect('sel-modelo', filtros.modelos, 'Todos');
-  preencherSelect('sel-centro-custo', filtros.centrosCusto || ['Todos'], 'Todos');
+  criarFiltro('modelo', filtros.modelos, 'Todos', 'Todos');
+  criarFiltro('centro-custo', filtros.centrosCusto || ['Todos'], 'Todos', 'Todos');
 }
 
 function aplicarFiltros() {
-  var mes = getSelectedValues('sel-mes', 'Todos');
-  var oficina = getSelectedValues('sel-oficina', 'Todas');
-  var modelo = getSelectedValues('sel-modelo', 'Todos');
-  var centroCusto = getSelectedValues('sel-centro-custo', 'Todos');
+  var mes = getSelectedValues('mes');
+  var oficina = getSelectedValues('oficina');
+  var modelo = getSelectedValues('modelo');
+  var centroCusto = getSelectedValues('centro-custo');
+  fecharFiltrosAbertos();
   document.getElementById('loading-overlay').style.display = 'flex';
   google.script.run
     .withSuccessHandler(function(data) {
@@ -714,6 +882,8 @@ function aplicarFiltros() {
     })
     .calcularKRs(mes, oficina, modelo, centroCusto);
 }
+
+document.addEventListener('click', function() { fecharFiltrosAbertos(); });
 
 // ── INIT ──────────────────────────────────────────────────────────────
 window.addEventListener('load', function() {
