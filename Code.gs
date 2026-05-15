@@ -83,36 +83,76 @@ function mesmaData(d1, d2) {
 }
 
 // ------------------------------------------------------------------
-// RETORNA OS FILTROS DISPONÍVEIS (meses, oficinas, modelos)
+// RETORNA OS FILTROS DISPONÍVEIS (meses, oficinas, modelos e centros de custo)
 // ------------------------------------------------------------------
 function getFiltros() {
-  var rows = getDadosBrutos();
-  var meses = {}, oficinas = {}, modelos = {};
+  return getFiltrosFromRows(getDadosBrutos());
+}
+
+function getFiltrosFromRows(rows) {
+  var meses = {}, oficinas = {}, modelos = {}, centrosCusto = {};
   rows.forEach(function(r) {
     if (r.ref_manutencao) meses[r.ref_manutencao] = true;
     if (r.oficina && r.oficina !== "") oficinas[r.oficina] = true;
     if (r.modelo_veiculo && r.modelo_veiculo !== "") modelos[r.modelo_veiculo] = true;
+    if (r.centro_custo && r.centro_custo !== "") centrosCusto[r.centro_custo] = true;
   });
   return {
     meses: Object.keys(meses).sort().reverse(),
     oficinas: ["Todas"].concat(Object.keys(oficinas).sort()),
-    modelos: ["Todos"].concat(Object.keys(modelos).sort())
+    modelos: ["Todos"].concat(Object.keys(modelos).sort()),
+    centrosCusto: ["Todos"].concat(Object.keys(centrosCusto).sort())
   };
+}
+
+function getDashboardInicial() {
+  var rows = getDadosBrutos();
+  var filtros = getFiltrosFromRows(rows);
+  var mesInicial = filtros.meses.length > 0 ? filtros.meses[0] : "Todos";
+  return {
+    filtros: filtros,
+    dados: calcularKRsFromRows(rows, mesInicial, ["Todas"], ["Todos"], ["Todos"])
+  };
+}
+
+function normalizarFiltro(valores, valorTodos) {
+  if (!valores) return [valorTodos];
+  if (!Array.isArray(valores)) valores = [valores];
+  valores = valores.filter(function(v) { return v !== null && v !== undefined && String(v) !== ""; });
+  return valores.length > 0 ? valores : [valorTodos];
+}
+
+function contemFiltro(valor, selecionados, valorTodos) {
+  if (!selecionados || selecionados.indexOf(valorTodos) !== -1) return true;
+  return selecionados.indexOf(valor) !== -1;
+}
+
+function rotuloFiltro(selecionados, valorTodos, rotuloTodos) {
+  if (!selecionados || selecionados.indexOf(valorTodos) !== -1 || selecionados.length === 0) return rotuloTodos;
+  if (selecionados.length <= 2) return selecionados.join(", ");
+  return selecionados.length + " selecionados";
 }
 
 // ------------------------------------------------------------------
 // FUNÇÃO PRINCIPAL: calcula todos os KRs com os filtros aplicados
 // ------------------------------------------------------------------
-function calcularKRs(filtroMes, filtroOficina, filtroModelo) {
-  var rows = getDadosBrutos();
+function calcularKRs(filtroMes, filtroOficina, filtroModelo, filtroCentroCusto) {
+  return calcularKRsFromRows(getDadosBrutos(), filtroMes, filtroOficina, filtroModelo, filtroCentroCusto);
+}
+
+function calcularKRsFromRows(rows, filtroMes, filtroOficina, filtroModelo, filtroCentroCusto) {
+
+  filtroMes = normalizarFiltro(filtroMes, "Todos");
+  filtroOficina = normalizarFiltro(filtroOficina, "Todas");
+  filtroModelo = normalizarFiltro(filtroModelo, "Todos");
+  filtroCentroCusto = normalizarFiltro(filtroCentroCusto, "Todos");
 
   // --- Filtragem ---
   var filtrado = rows.filter(function(r) {
-    var ok = true;
-    if (filtroMes && filtroMes !== "Todos") ok = ok && (r.ref_manutencao === filtroMes);
-    if (filtroOficina && filtroOficina !== "Todas") ok = ok && (r.oficina === filtroOficina);
-    if (filtroModelo && filtroModelo !== "Todos") ok = ok && (r.modelo_veiculo === filtroModelo);
-    return ok;
+    return contemFiltro(r.ref_manutencao, filtroMes, "Todos") &&
+           contemFiltro(r.oficina, filtroOficina, "Todas") &&
+           contemFiltro(r.modelo_veiculo, filtroModelo, "Todos") &&
+           contemFiltro(r.centro_custo, filtroCentroCusto, "Todos");
   });
 
   // ----------------------------------------------------------------
@@ -122,10 +162,10 @@ function calcularKRs(filtroMes, filtroOficina, filtroModelo) {
   filtrado.forEach(function(r) { if (r.placa) placasUnicas[r.placa] = true; });
   var totalPlacas = Object.keys(placasUnicas).length;
 
-  // Dias no mês filtrado (usa o primeiro mês do filtro ou 30 padrão)
+  // Dias no mês filtrado (usa o primeiro mês selecionado ou 30 padrão)
   var diasMes = 30;
-  if (filtroMes && filtroMes !== "Todos") {
-    var partes = filtroMes.split("-");
+  if (filtroMes.indexOf("Todos") === -1 && filtroMes.length === 1) {
+    var partes = filtroMes[0].split("-");
     diasMes = new Date(parseInt(partes[0]), parseInt(partes[1]), 0).getDate();
   }
   var horasDisponiveisTotais = totalPlacas * diasMes * HORAS_OPERACAO_DIA;
@@ -157,11 +197,16 @@ function calcularKRs(filtroMes, filtroOficina, filtroModelo) {
   // ----------------------------------------------------------------
   var downtimeMesAtual = downtimeReal;
   var downtimeMesAnterior = 0;
-  if (filtroMes && filtroMes !== "Todos") {
-    var partesMes = filtroMes.split("-");
+  if (filtroMes.indexOf("Todos") === -1 && filtroMes.length === 1) {
+    var partesMes = filtroMes[0].split("-");
     var ano = parseInt(partesMes[0]), mes = parseInt(partesMes[1]);
     var mesAnt = mes === 1 ? (ano - 1) + "-12" : ano + "-" + String(mes - 1).padStart(2, "0");
-    var rowsAnt = getDadosBrutos().filter(function(r) { return r.ref_manutencao === mesAnt; });
+    var rowsAnt = rows.filter(function(r) {
+      return r.ref_manutencao === mesAnt &&
+             contemFiltro(r.oficina, filtroOficina, "Todas") &&
+             contemFiltro(r.modelo_veiculo, filtroModelo, "Todos") &&
+             contemFiltro(r.centro_custo, filtroCentroCusto, "Todos");
+    });
     var osDtAnt = {};
     rowsAnt.forEach(function(r) {
       var cod = r.cod_osm;
@@ -177,12 +222,13 @@ function calcularKRs(filtroMes, filtroOficina, filtroModelo) {
   // KR3 — Top 5 Veículos Ofensores
   // ----------------------------------------------------------------
   var placaDowntime = {};
+  var placaPorOs = {};
+  filtrado.forEach(function(r) {
+    if (r.cod_osm && r.placa && !placaPorOs[r.cod_osm]) placaPorOs[r.cod_osm] = r.placa;
+  });
   Object.keys(osDt).forEach(function(cod) {
-    // encontra a placa desta OS
-    var linha = filtrado.find(function(r) { return String(r.cod_osm) === String(cod); });
-    if (linha && linha.placa) {
-      placaDowntime[linha.placa] = (placaDowntime[linha.placa] || 0) + osDt[cod];
-    }
+    var placa = placaPorOs[cod];
+    if (placa) placaDowntime[placa] = (placaDowntime[placa] || 0) + osDt[cod];
   });
   var top5 = Object.entries(placaDowntime)
     .sort(function(a, b) { return b[1] - a[1]; })
@@ -242,10 +288,10 @@ function calcularKRs(filtroMes, filtroOficina, filtroModelo) {
   // ----------------------------------------------------------------
   // KR6 — Preventiva vs Corretiva por mês (últimos 6 meses)
   // ----------------------------------------------------------------
-  var allRows = getDadosBrutos();
+  var allRows = rows;
   var mesesUnicos = [];
-  if (filtroMes && filtroMes !== "Todos") {
-    var p = filtroMes.split("-");
+  if (filtroMes.indexOf("Todos") === -1 && filtroMes.length === 1) {
+    var p = filtroMes[0].split("-");
     var a = parseInt(p[0]), m = parseInt(p[1]);
     for (var i = 5; i >= 0; i--) {
       var mi = m - i;
@@ -262,8 +308,9 @@ function calcularKRs(filtroMes, filtroOficina, filtroModelo) {
     var osPreventiva = {}, osCorretiva = {}, osOther = {};
     allRows.forEach(function(r) {
       if (r.ref_manutencao !== mes) return;
-      if (filtroOficina && filtroOficina !== "Todas" && r.oficina !== filtroOficina) return;
-      if (filtroModelo && filtroModelo !== "Todos" && r.modelo_veiculo !== filtroModelo) return;
+      if (!contemFiltro(r.oficina, filtroOficina, "Todas")) return;
+      if (!contemFiltro(r.modelo_veiculo, filtroModelo, "Todos")) return;
+      if (!contemFiltro(r.centro_custo, filtroCentroCusto, "Todos")) return;
       var cod = r.cod_osm;
       var tipo = String(r.tipo_manutencao || "").toUpperCase();
       if (tipo.includes("PREVENTIVA")) osPreventiva[cod] = true;
@@ -342,9 +389,10 @@ function calcularKRs(filtroMes, filtroOficina, filtroModelo) {
   // RETORNA TUDO
   // ----------------------------------------------------------------
   return {
-    filtroMes: filtroMes,
-    filtroOficina: filtroOficina,
-    filtroModelo: filtroModelo,
+    filtroMes: rotuloFiltro(filtroMes, "Todos", "Todos os períodos"),
+    filtroOficina: rotuloFiltro(filtroOficina, "Todas", "Todas"),
+    filtroModelo: rotuloFiltro(filtroModelo, "Todos", "Todos"),
+    filtroCentroCusto: rotuloFiltro(filtroCentroCusto, "Todos", "Todos"),
     kr1: {
       taxaDisponibilidade: Math.round(taxaDisponibilidade * 10) / 10,
       totalPlacas: totalPlacas,
