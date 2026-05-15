@@ -24,6 +24,24 @@
     --glow-blue: rgba(59,130,246,0.15);
     --glow-green: rgba(16,185,129,0.15);
     --glow-red: rgba(239,68,68,0.15);
+    --topbar-bg: rgba(11,15,26,0.95);
+    --card-gradient-a: #111827;
+    --card-gradient-b: #0d1b2e;
+  }
+  body.theme-light {
+    --bg: #f3f6fb;
+    --surface: #ffffff;
+    --surface2: #e9eef7;
+    --border: #d5deea;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --glow-blue: rgba(59,130,246,0.10);
+    --glow-green: rgba(16,185,129,0.10);
+    --glow-red: rgba(239,68,68,0.10);
+    --topbar-bg: rgba(255,255,255,0.94);
+    --card-gradient-a: #ffffff;
+    --card-gradient-b: #eef6ff;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: var(--bg); color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 13px; overflow-x: hidden; }
@@ -34,10 +52,10 @@
   /* ── TOPBAR ── */
   .topbar {
     position: sticky; top: 0; z-index: 100;
-    background: rgba(11,15,26,0.95); backdrop-filter: blur(12px);
+    background: var(--topbar-bg); backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
     padding: 0 24px;
-    height: 60px; display: flex; align-items: center; gap: 16px;
+    min-height: 60px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   }
   .topbar-brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
   .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan); animation: pulse 2s infinite; }
@@ -50,18 +68,53 @@
   .filter-group { display: flex; flex-direction: column; gap: 2px; }
   select {
     background: var(--surface2); border: 1px solid var(--border); color: var(--text-primary);
-    padding: 5px 28px 5px 10px; border-radius: 6px; font-family: inherit; font-size: 12px;
-    cursor: pointer; outline: none; appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 8px center;
+    padding: 5px 10px; border-radius: 6px; font-family: inherit; font-size: 12px;
+    cursor: pointer; outline: none; min-width: 132px;
   }
+  select[multiple] { height: 58px; min-width: 150px; scrollbar-width: thin; }
   select:focus { border-color: var(--accent-blue); }
+  select option { background: var(--surface); color: var(--text-primary); }
+  .filter-hint { font-size: 9px; color: var(--text-muted); line-height: 1; }
   .btn-apply {
     background: var(--accent-blue); color: #fff; border: none;
     padding: 6px 16px; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600;
     cursor: pointer; transition: .2s; white-space: nowrap;
   }
   .btn-apply:hover { background: #2563eb; }
+  .btn-theme {
+    background: var(--surface2); color: var(--text-primary); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: .2s; white-space: nowrap;
+  }
+  .btn-theme:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+  .multi-filter { position: relative; min-width: 180px; }
+  .filter-trigger {
+    width: 100%; min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text-primary);
+    padding: 6px 10px; border-radius: 6px; font-family: inherit; font-size: 12px; cursor: pointer;
+  }
+  .filter-trigger::after { content: '▾'; color: var(--text-muted); font-size: 10px; }
+  .filter-trigger:hover, .filter-trigger:focus { border-color: var(--accent-blue); outline: none; }
+  .filter-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filter-menu {
+    position: absolute; top: calc(100% + 6px); left: 0; width: 260px; max-width: 80vw;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.25); padding: 10px; display: none; z-index: 300;
+  }
+  .multi-filter.open .filter-menu { display: block; }
+  .filter-search {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text-primary);
+    border-radius: 6px; padding: 7px 9px; font-family: inherit; font-size: 12px; outline: none; margin-bottom: 8px;
+  }
+  .filter-search:focus { border-color: var(--accent-blue); }
+  .filter-options { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+  .filter-option { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px; }
+  .filter-option:hover { background: var(--surface2); color: var(--text-primary); }
+  .filter-option input { accent-color: var(--accent-blue); flex-shrink: 0; }
+  .filter-empty { color: var(--text-muted); font-size: 11px; text-align: center; padding: 10px; }
+  .filter-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .filter-mini-btn { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text-secondary); border-radius: 6px; padding: 5px; font-size: 11px; cursor: pointer; }
+  .filter-mini-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 
   /* ── LOADING OVERLAY ── */
   #loading-overlay {
@@ -221,17 +274,22 @@
 
   <div class="filter-group">
     <span class="filter-label">Mês/Ano</span>
-    <select id="sel-mes"><option value="Todos">Todos os períodos</option></select>
+    <div class="multi-filter" id="filter-mes"></div>
   </div>
   <div class="filter-group">
     <span class="filter-label">Oficina</span>
-    <select id="sel-oficina"><option value="Todas">Todas</option></select>
+    <div class="multi-filter" id="filter-oficina"></div>
   </div>
   <div class="filter-group">
     <span class="filter-label">Modelo</span>
-    <select id="sel-modelo"><option value="Todos">Todos</option></select>
+    <div class="multi-filter" id="filter-modelo"></div>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Centro Custo</span>
+    <div class="multi-filter" id="filter-centro-custo"></div>
   </div>
   <button class="btn-apply" onclick="aplicarFiltros()">▶ Aplicar</button>
+  <button class="btn-theme" id="btn-theme" onclick="alternarTema()" title="Alternar entre modo claro e escuro">☀️ Claro</button>
 </div>
 
 <!-- DASHBOARD -->
@@ -247,7 +305,7 @@
 
     <div class="grid-4">
       <!-- KR1: Gauge Disponibilidade -->
-      <div class="card" style="background:linear-gradient(135deg,#111827 0%,#0d1b2e 100%)">
+      <div class="card" style="background:linear-gradient(135deg,var(--card-gradient-a) 0%,var(--card-gradient-b) 100%)">
         <div class="card-glow" style="background:linear-gradient(90deg,var(--accent-cyan),var(--accent-blue))"></div>
         <div class="kpi-label">KR1 · Taxa de Disponibilidade</div>
         <div class="gauge-wrapper">
@@ -409,17 +467,40 @@
 // ── CHARTS ──────────────────────────────────────────────────────────
 var chartPrevCorr = null;
 var chartDonutLeve = null;
+var ultimoDashboard = null;
 
-var CF = {
-  bg: '#0b0f1a', surface: '#111827', border: '#1f2d42',
-  blue: '#3b82f6', cyan: '#06b6d4', green: '#10b981',
-  red: '#ef4444', amber: '#f59e0b', violet: '#8b5cf6',
-  text: '#94a3b8', muted: '#475569'
-};
+var CF = {};
 
-Chart.defaults.color = CF.text;
-Chart.defaults.borderColor = CF.border;
-Chart.defaults.font.family = "'DM Sans', sans-serif";
+function lerCorCss(nome) {
+  return getComputedStyle(document.body).getPropertyValue(nome).trim();
+}
+
+function atualizarCoresChart() {
+  CF = {
+    bg: lerCorCss('--bg'), surface: lerCorCss('--surface'), border: lerCorCss('--border'),
+    blue: lerCorCss('--accent-blue'), cyan: lerCorCss('--accent-cyan'), green: lerCorCss('--accent-green'),
+    red: lerCorCss('--accent-red'), amber: lerCorCss('--accent-amber'), violet: lerCorCss('--accent-violet'),
+    text: lerCorCss('--text-secondary'), muted: lerCorCss('--text-muted')
+  };
+  Chart.defaults.color = CF.text;
+  Chart.defaults.borderColor = CF.border;
+  Chart.defaults.font.family = "'DM Sans', sans-serif";
+}
+
+function alternarTema() {
+  var claro = document.body.classList.toggle('theme-light');
+  localStorage.setItem('fleet-theme', claro ? 'light' : 'dark');
+  document.getElementById('btn-theme').textContent = claro ? '🌙 Escuro' : '☀️ Claro';
+  atualizarCoresChart();
+  if (ultimoDashboard) buildCharts(ultimoDashboard);
+}
+
+function aplicarTemaSalvo() {
+  if (localStorage.getItem('fleet-theme') === 'light') document.body.classList.add('theme-light');
+  var claro = document.body.classList.contains('theme-light');
+  document.getElementById('btn-theme').textContent = claro ? '🌙 Escuro' : '☀️ Claro';
+  atualizarCoresChart();
+}
 
 function buildCharts(d) {
   // Destroy previous
@@ -475,6 +556,7 @@ function buildCharts(d) {
 
 // ── RENDER DATA ──────────────────────────────────────────────────────
 function renderDashboard(d) {
+  ultimoDashboard = d;
 
   // ─ KR1: Gauge
   var pct = d.kr1.taxaDisponibilidade;
@@ -591,39 +673,203 @@ function renderDashboard(d) {
 
   // ─ Labels
   document.getElementById('periodo-label').textContent =
-    (d.filtroMes && d.filtroMes !== 'Todos' ? 'Período: ' + d.filtroMes : 'Todos os períodos') +
-    (d.filtroOficina && d.filtroOficina !== 'Todas' ? ' · ' + d.filtroOficina : '') +
-    (d.filtroModelo && d.filtroModelo !== 'Todos' ? ' · ' + d.filtroModelo : '');
+    'Período: ' + (d.filtroMes || 'Todos os períodos') +
+    (d.filtroOficina && d.filtroOficina !== 'Todas' ? ' · Oficina: ' + d.filtroOficina : '') +
+    (d.filtroModelo && d.filtroModelo !== 'Todos' ? ' · Modelo: ' + d.filtroModelo : '') +
+    (d.filtroCentroCusto && d.filtroCentroCusto !== 'Todos' ? ' · Centro: ' + d.filtroCentroCusto : '');
 
   // ─ Build charts
   buildCharts(d);
 }
 
 // ── FILTROS ──────────────────────────────────────────────────────────
+var filtrosUI = {};
+
+function normalizarTextoBusca(txt) {
+  return String(txt || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function fecharFiltrosAbertos(excetoKey) {
+  Object.keys(filtrosUI).forEach(function(key) {
+    if (key !== excetoKey) document.getElementById('filter-' + key).classList.remove('open');
+  });
+}
+
+function toggleFilterMenu(key) {
+  var el = document.getElementById('filter-' + key);
+  var vaiAbrir = !el.classList.contains('open');
+  fecharFiltrosAbertos(key);
+  el.classList.toggle('open', vaiAbrir);
+  if (vaiAbrir) {
+    var input = document.getElementById('filter-' + key + '-search');
+    input.focus();
+    filtrarOpcoes(key);
+  }
+}
+
+function criarFiltro(key, opcoes, valorTodos, valorPadrao, formatador) {
+  filtrosUI[key] = {
+    valorTodos: valorTodos,
+    opcoes: opcoes.map(function(opcao) {
+      return { value: opcao, label: formatador ? formatador(opcao) : opcao };
+    })
+  };
+
+  var root = document.getElementById('filter-' + key);
+  root.innerHTML = '';
+  root.onclick = function(ev) { ev.stopPropagation(); };
+
+  var trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'filter-trigger';
+  trigger.onclick = function() { toggleFilterMenu(key); };
+  var summary = document.createElement('span');
+  summary.className = 'filter-summary';
+  summary.id = 'filter-' + key + '-summary';
+  summary.textContent = 'Todos';
+  trigger.appendChild(summary);
+
+  var menu = document.createElement('div');
+  menu.className = 'filter-menu';
+  menu.onclick = function(ev) { ev.stopPropagation(); };
+
+  var search = document.createElement('input');
+  search.type = 'search';
+  search.className = 'filter-search';
+  search.id = 'filter-' + key + '-search';
+  search.placeholder = 'Pesquisar...';
+  search.oninput = function() { filtrarOpcoes(key); };
+
+  var options = document.createElement('div');
+  options.className = 'filter-options';
+  options.id = 'filter-' + key + '-options';
+
+  var actions = document.createElement('div');
+  actions.className = 'filter-actions';
+  actions.innerHTML = '<button type="button" class="filter-mini-btn">Todos</button><button type="button" class="filter-mini-btn">Limpar busca</button>';
+  actions.children[0].onclick = function() { selecionarTodosFiltro(key); };
+  actions.children[1].onclick = function() { limparBuscaFiltro(key); };
+
+  menu.appendChild(search);
+  menu.appendChild(options);
+  menu.appendChild(actions);
+  root.appendChild(trigger);
+  root.appendChild(menu);
+
+  renderizarOpcoesFiltro(key, valorPadrao || valorTodos);
+  atualizarResumoFiltro(key);
+}
+
+function renderizarOpcoesFiltro(key, valorPadrao) {
+  var cfg = filtrosUI[key];
+  var optionsEl = document.getElementById('filter-' + key + '-options');
+  optionsEl.innerHTML = '';
+  cfg.opcoes.forEach(function(opcao) {
+    var label = document.createElement('label');
+    label.className = 'filter-option';
+    label.dataset.search = normalizarTextoBusca(opcao.label + ' ' + opcao.value);
+
+    var input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = opcao.value;
+    input.checked = opcao.value === valorPadrao;
+    input.onchange = function() { atualizarSelecaoFiltro(key, opcao.value); };
+
+    var span = document.createElement('span');
+    span.textContent = opcao.label;
+
+    label.appendChild(input);
+    label.appendChild(span);
+    optionsEl.appendChild(label);
+  });
+}
+
+function getCheckboxesFiltro(key) {
+  return Array.prototype.slice.call(document.querySelectorAll('#filter-' + key + '-options input[type="checkbox"]'));
+}
+
+function atualizarSelecaoFiltro(key, valorAlterado) {
+  var cfg = filtrosUI[key];
+  var checks = getCheckboxesFiltro(key);
+  var allCheck = checks.filter(function(c) { return c.value === cfg.valorTodos; })[0];
+
+  if (valorAlterado === cfg.valorTodos && allCheck && allCheck.checked) {
+    checks.forEach(function(c) { if (c.value !== cfg.valorTodos) c.checked = false; });
+  } else {
+    if (allCheck) allCheck.checked = false;
+  }
+
+  if (!checks.some(function(c) { return c.checked; }) && allCheck) allCheck.checked = true;
+  atualizarResumoFiltro(key);
+}
+
+function selecionarTodosFiltro(key) {
+  var cfg = filtrosUI[key];
+  getCheckboxesFiltro(key).forEach(function(c) { c.checked = c.value === cfg.valorTodos; });
+  atualizarResumoFiltro(key);
+}
+
+function limparBuscaFiltro(key) {
+  document.getElementById('filter-' + key + '-search').value = '';
+  filtrarOpcoes(key);
+}
+
+function filtrarOpcoes(key) {
+  var termo = normalizarTextoBusca(document.getElementById('filter-' + key + '-search').value);
+  var visiveis = 0;
+  Array.prototype.forEach.call(document.querySelectorAll('#filter-' + key + '-options .filter-option'), function(label) {
+    var match = !termo || label.dataset.search.indexOf(termo) !== -1;
+    label.style.display = match ? 'flex' : 'none';
+    if (match) visiveis++;
+  });
+
+  var optionsEl = document.getElementById('filter-' + key + '-options');
+  var empty = optionsEl.querySelector('.filter-empty');
+  if (!empty) {
+    empty = document.createElement('div');
+    empty.className = 'filter-empty';
+    empty.textContent = 'Nenhuma opção encontrada';
+    optionsEl.appendChild(empty);
+  }
+  empty.style.display = visiveis === 0 ? 'block' : 'none';
+}
+
+function getSelectedValues(key) {
+  var cfg = filtrosUI[key];
+  var valores = getCheckboxesFiltro(key).filter(function(c) { return c.checked; }).map(function(c) { return c.value; });
+  return valores.length > 0 ? valores : [cfg.valorTodos];
+}
+
+function atualizarResumoFiltro(key) {
+  var cfg = filtrosUI[key];
+  var selecionados = getSelectedValues(key);
+  var summary = document.getElementById('filter-' + key + '-summary');
+  if (selecionados.indexOf(cfg.valorTodos) !== -1) {
+    var allOpt = cfg.opcoes.filter(function(o) { return o.value === cfg.valorTodos; })[0];
+    summary.textContent = allOpt ? allOpt.label : 'Todos';
+    return;
+  }
+  var labels = cfg.opcoes.filter(function(o) { return selecionados.indexOf(o.value) !== -1; }).map(function(o) { return o.label; });
+  summary.textContent = labels.length <= 2 ? labels.join(', ') : labels.length + ' selecionados';
+}
+
 function popularFiltros(filtros) {
-  var selMes = document.getElementById('sel-mes');
-  var selOf = document.getElementById('sel-oficina');
-  var selMod = document.getElementById('sel-modelo');
-  selMes.innerHTML = '<option value="Todos">Todos os períodos</option>';
-  filtros.meses.forEach(function(m) {
-    selMes.innerHTML += '<option value="' + m + '">' + m + '</option>';
+  criarFiltro('mes', ['Todos'].concat(filtros.meses), 'Todos', filtros.meses.length > 0 ? filtros.meses[0] : 'Todos', function(m) {
+    return m === 'Todos' ? 'Todos os períodos' : m;
   });
-  selOf.innerHTML = '';
-  filtros.oficinas.forEach(function(o) {
-    selOf.innerHTML += '<option value="' + o + '">' + (o.replace('NORTE TECH SERVICOS EM ENERGIA LTDA - ', '').replace('NORTE TECH SERVIÇOS EM ENERGIA LTDA - ', '')) + '</option>';
+  criarFiltro('oficina', filtros.oficinas, 'Todas', 'Todas', function(o) {
+    return o.replace('NORTE TECH SERVICOS EM ENERGIA LTDA - ', '').replace('NORTE TECH SERVIÇOS EM ENERGIA LTDA - ', '');
   });
-  selMod.innerHTML = '<option value="Todos">Todos</option>';
-  filtros.modelos.forEach(function(m) {
-    if (m !== 'Todos') selMod.innerHTML += '<option value="' + m + '">' + m + '</option>';
-  });
-  // Default: select most recent month
-  if (filtros.meses.length > 0) selMes.value = filtros.meses[0];
+  criarFiltro('modelo', filtros.modelos, 'Todos', 'Todos');
+  criarFiltro('centro-custo', filtros.centrosCusto || ['Todos'], 'Todos', 'Todos');
 }
 
 function aplicarFiltros() {
-  var mes = document.getElementById('sel-mes').value;
-  var oficina = document.getElementById('sel-oficina').value;
-  var modelo = document.getElementById('sel-modelo').value;
+  var mes = getSelectedValues('mes');
+  var oficina = getSelectedValues('oficina');
+  var modelo = getSelectedValues('modelo');
+  var centroCusto = getSelectedValues('centro-custo');
+  fecharFiltrosAbertos();
   document.getElementById('loading-overlay').style.display = 'flex';
   google.script.run
     .withSuccessHandler(function(data) {
@@ -634,22 +880,26 @@ function aplicarFiltros() {
       alert('Erro ao calcular KRs: ' + err.message);
       document.getElementById('loading-overlay').style.display = 'none';
     })
-    .calcularKRs(mes, oficina, modelo);
+    .calcularKRs(mes, oficina, modelo, centroCusto);
 }
+
+document.addEventListener('click', function() { fecharFiltrosAbertos(); });
 
 // ── INIT ──────────────────────────────────────────────────────────────
 window.addEventListener('load', function() {
+  aplicarTemaSalvo();
   google.script.run
-    .withSuccessHandler(function(filtros) {
-      popularFiltros(filtros);
+    .withSuccessHandler(function(payload) {
+      popularFiltros(payload.filtros);
       document.getElementById('dashboard').style.display = 'block';
-      aplicarFiltros(); // Load with default (latest month)
+      renderDashboard(payload.dados);
+      document.getElementById('loading-overlay').style.display = 'none';
     })
     .withFailureHandler(function(err) {
       document.getElementById('loading-overlay').innerHTML =
         '<div style="color:#ef4444;font-size:14px;text-align:center;padding:32px">❌ Erro ao inicializar:<br>' + err.message + '</div>';
     })
-    .getFiltros();
+    .getDashboardInicial();
 });
 </script>
 </body>
